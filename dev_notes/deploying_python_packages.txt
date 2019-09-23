@@ -1,0 +1,49 @@
+[pypi]
+repository = https://pypi.org
+username = helloatlas
+
+
+PYTHON PACKAGES STRUCTURE
+https://www.youtube.com/watch?v=UK97NoQK23k |  Damian Gordon
+
+DEPLOYING PYTHON PACKAGES
+https://www.youtube.com/watch?v=QgZ7qv4Cd0Y&t | Mark Smith
+https://www.youtube.com/watch?v=qOH-h-EKKac | Dave Forgac
+https://stackoverflow.com/questions/50585246/pip-install-creates-only-the-dist-info-not-the-package
+
+
+# Build distribution wheel
+> Use Anaconda Prompt
+python setup.py bdist_wheel
+
+# Push to Github
+
+# PyPI distribution
+> Use Anaconda Prompt > Navigate to the correct folder with the files > Run below commands
+python setup.py sdist (not needed - egg is the old way)
+twine upload dist/*
+
+
+# Install package in develop mode
+python setup.py develop [local dir here]
+or 
+pip install -e [local dir here]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

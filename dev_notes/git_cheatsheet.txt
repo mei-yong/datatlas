@@ -1,0 +1,148 @@
+
+---GETTING STARTED---
+
+CHECK VERSION
+git --version
+
+SET CONFIG VALUES
+git config --global user.name "Mei Yong"
+git config --global user.email "shaomeiyong@gmail.com"
+
+git config --global user.name "Atlas"
+git config --global user.email "helloatlas42@gmail.com"
+
+git remote set-url origin <URL>
+
+VIEW CONFIG VALUES
+git config --list
+
+GIT HELP
+git help <verb>
+git <verb> --help
+
+NAVIGATING DIRECTORY
+*See current directory
+ls
+*Go into directory folder
+cd <folder>/
+*See all files in the folder
+ls -la
+* Navigate to my UKSR local repo
+cd Documents/1.ENGAGEMENTS/Signals_Repository/Tetra/UKSR_code
+
+INITIALISE A REPOSITORY FROM EXISTING CODE
+* Create a new .git file to start tracking changes in the local repo area
+git init
+
+STOP TRACKING CHANGES WITH GIT
+* Remove the .git file
+rm -rf .git
+
+SPECIFY FILES TO NOT TRACKING
+* Create a gitignore file - edit it manually with a list of filenames to not track
+touch .gitignore
+
+------------
+.DS_Store
+.project
+*.pyc
+------------
+
+VIEW STATUS OF FILES & CHANGES
+git status
+
+ADD FILES TO STAGING AREA
+* Add all files
+git add -A
+* Add specific files
+git add <filename>
+
+REMOVE FILES FROM STAGING AREA
+* All the files
+git reset
+* Remove specific files
+git reset <filename>
+
+COMMIT FILES IN THE STAGING AREA TO THE LOCAL REPO WITH A MESSAGE
+git commit -m "message goes here"
+
+SEE COMMIT HISTORY AND WHO MADE THEM
+git log
+
+CLONING A REMOTE REPO
+git clone <url> <where to clone>
+
+git clone https://stash.customappsteam.co.uk/scm/uksr/uksr.git .
+
+
+VIEW INFO ABOUT THE REMOTE REPO
+git remote -v
+git branch -a
+
+
+PUSHING CHANGES TO STAGING
+*See exactly which lines of code were changed
+git diff
+git add -A
+git commit -m "message about what was changed"
+*Pull any changes from the remote repo
+git pull origin master
+* changes to the remote repo
+git push origin master
+
+------------------------------------------------------------------
+
+WORKING IN A TEAM
+
+CREATE BRANCH FROM REMOTE MASTER
+* Create a new branch
+git branch <branchname>
+* Switch to that branch to work on
+git checkout <branchname>
+* Lists all local branches - the one with the star is the current working one
+git branch -a
+
+COMMIT TO LOCAL BRANCH STAGING AREA - no effect on local master or remote repo
+git add -A
+git commit -m "message about what was changed"
+
+PUSH THE LOCAL BRANCH COMMIT TO THE REMOTE REPO BRANCH
+* -u tells git that we want to associate the branch with the local master
+* using the -u enables you to git pull and git push without needing to specify the branch cause it's already associated
+* usually, you'd push to the remote branch, not the remote master because the company will probably want to unit test the branch first before merging
+git push -u origin <branchname>
+
+MERGE LOCAL BRANCH WITH LOCAL MASTER
+* Switch to master branch
+git checkout master
+git pull origin master
+* See which branches have been merged before
+git branch --merged
+* Merge the branch with master
+git merge <branchname>
+* Push the master to remote master
+git push origin master
+
+DELETING A BRANCH
+git branch --merged
+* Delete the local branch
+git branch -d <branchname>
+* You can see that only the local and not the remote is deleted
+git branch -a 
+* Delete the remote branch
+git push origin --delete <branchname>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
