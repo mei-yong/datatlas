@@ -4,14 +4,12 @@ Datatlas: Data Atlas
 * Data profiling
 
 Author: Mei Yong
-Updated date: 2019-09-21
+Updated date: 2019-10-26
 
-
-	WIP Ideas
+WIP Ideas
     * Distinct values
 	* YesNo
 	* Categorical
-	* Mixed types based on regex
 	* ID check
 		- sequential score
 		- Check for repeated value score - mask then group then average where zero is means more repeated values and one means less repeated values and closer to zero is more likely to be an ID
@@ -45,7 +43,142 @@ def say_hello(name):
 ################################################################################
 
 
-# Function that profiles a df
+
+# Get DQ warnings based on relevant prior analyses
+def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshold, cardinality_dict, cardinality_threshold, dictinct_val_dict, dtype_regex_detail, dtype_dict, dtype_regex_final):
+    '''
+    Input(s):
+        1) Relevant DQ dictionaries
+        2) Relevant threshold values
+    Output(s):
+        1) A dictionary with column names as keys and values are lists of DQ warnings
+    '''
+    
+    import pandas as pd
+    
+    # Flag up columns with values that may have DQ issues
+    warning_null_dict = {key: 1 for key,value in null_dict_p.items() if value >= nulls_threshold }
+    warning_zeroes_dict = {key: 1 for key,value in zeroes_dict_p.items() if value >= zeroes_threshold }
+    warning_cardinality_dict = {key: 1 for key,value in cardinality_dict.items() if value >= cardinality_threshold }
+    warning_one_distinct_dict = {key: 1 for key,value in dictinct_val_dict.items() if value == 1 }
+    warning_dtype_mixed_dict = {key: 1 for key,value in dtype_regex_detail.items() if value['mixed']>0}
+    
+    warning_dtype_mismatch_dict = {}
+    for column, auto_dtype_value, regex_dtype_value in zip(dtype_dict.keys(), dtype_dict.values(), dtype_regex_final.values()):
+        if regex_dtype_value == 'numeric' and auto_dtype_value in ['object']:
+            warning_dtype_mismatch_dict[column] = 1
+        if regex_dtype_value == 'non-numeric' and auto_dtype_value in ['float64','int64']:
+            warning_dtype_mismatch_dict[column] = 1
+            
+    # Put the dictionaries of DQ flags together
+    warning_df = pd.DataFrame([
+                                warning_null_dict
+                                ,warning_zeroes_dict
+                                ,warning_cardinality_dict
+                                ,warning_one_distinct_dict
+                                ,warning_dtype_mixed_dict
+                                ,warning_dtype_mismatch_dict
+                                ]
+                                , index = ['Nulls','Zeroes','Cardinality','Only_1_distinct',\
+                                           'Mixed_dtype','Dtype_mismatch']   
+                                )
+    
+    # Using the df of DQ flags, put together a list of lists of DQ warnings
+    final_warnings_list = []
+    for column in warning_df:
+        column_warnings = []
+        if warning_df.loc['Nulls' , column] == 1:
+            column_warnings.append('High_null_percentage')
+        if warning_df.loc['Zeroes' , column] == 1:
+            column_warnings.append('High_zeroes_percentage')
+        if warning_df.loc['Cardinality' , column] == 1:
+            column_warnings.append('High_cardinality')
+        if warning_df.loc['Only_1_distinct' , column] == 1:
+            column_warnings.append('Only_1_unique_value')
+        if warning_df.loc['Mixed_dtype' , column] == 1:
+            column_warnings.append('Mixed_dtypes')
+        if warning_df.loc['Dtype_mismatch' , column] == 1:
+            column_warnings.append('Auto_vs_regex_dtype_mismatch')
+        final_warnings_list.append(column_warnings)
+        
+    final_warnings_dict = dict(zip(warning_df.columns , final_warnings_list))
+    
+    return final_warnings_dict
+    
+
+# Get data type profiles using regex
+def get_dtype_profile(df):
+    '''
+    Input(s):
+        1) df to profile
+    Output(s):
+        1) Dictionary where key is the column name & value is a nested dictionary with percentages of numeric, non-numeric, or mixed characters
+        2) Dictionary where key is the column name & value is the most likely data type it should be
+    '''
+    
+    import re
+    
+    dtype_regex_detail = {}
+    
+    for column in df:
+        
+        col = df[column]
+        
+        # Data prep for regex
+        col.dropna(inplace=True) # Drop nulls
+        col = col.astype(str).str.lower() # Lowercase
+        col = col.str.replace(' ','') # Remove whitespace
+        col = col.apply(lambda x: re.sub(r'[^\w\s]', '', x)) # Remove punctuation
+        
+        numeric_count, string_count, mixed_count = 0, 0, 0
+        
+        for item in col:
+            
+            item_len = len(item)
+            
+            # Find the number of alphabets in the string
+            alphabet_find = re.findall(r"[a-zA-Z]+", item)
+            try:
+                alphabet_len = len(alphabet_find[0])
+            except:
+                alphabet_len = 0
+            
+            # Find the number of numbers in the string
+            number_find = re.findall(r"[0-9]+", item)
+            try:
+                number_len = len(number_find[0])
+            except:
+                number_len = 0
+            
+            # Note the number of strings that are fully alphabets, fully numbers, or mixed
+            if item_len == number_len:
+                numeric_count += 1
+            elif item_len == alphabet_len:
+                string_count += 1
+            else:
+                mixed_count += 1
+        
+        # Put the results together into a summary dictionary
+        dtype_regex_result = {'numeric': round(numeric_count/len(col) *100, 2)
+                            ,'non-numeric': round(string_count/len(col) *100, 2)
+                            ,'mixed': round(mixed_count/len(col) *100, 2)   
+                            }
+            
+        dtype_regex_detail[column] = dtype_regex_result
+    
+    # Using the summary dictionary, find the most common detected dtype
+    dtype_regex_final = {}
+    for column in dtype_regex_detail:
+        d = dtype_regex_detail[column]
+        dtype_regex_final[column] = max(d, key=d.get)
+        # https://stackoverflow.com/questions/268272/getting-key-with-maximum-value-in-dictionary
+    
+    return dtype_regex_detail, dtype_regex_final
+
+
+
+
+# Main function that profiles a df
 def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_threshold=50.0):
     '''
     Input(s):
@@ -62,8 +195,11 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     
     rowcount = df.shape[0]
     
-    # Datatype
+    # Data type that is auto-detected
     dtype_dict = {column : df[column].dtype.name for column in df}
+    
+    # Data type using regex
+    dtype_regex_detail, dtype_regex_final = get_dtype_profile(df)
     
     # Number of not-nulls
     count_dict = {column : df[column].count() for column in df}
@@ -75,7 +211,7 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     null_dict_p = {column : round(df[column].isnull().sum() / rowcount * 100, 2) for column in df}
     
     # Number of distinct categorical values
-    dictinct_val_dict = {column: df[column].value_counts().count() \
+    dictinct_val_dict = {column: df[column].nunique() \
                          for column in df if df[column].dtype in ['object'] }
     
     # Percentage of distinct categorical values
@@ -114,40 +250,26 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     # Outliers
     
     
+    
     # DQ Warnings
-    warning_null_dict = {key: 1 for key,value in null_dict_p.items() if value >= nulls_threshold }
-    warning_zeroes_dict = {key: 1 for key,value in zeroes_dict_p.items() if value >= zeroes_threshold }
-    warning_cardinality_dict = {key: 1 for key,value in cardinality_dict.items() if value >= cardinality_threshold }
-    warning_one_distinct_dict = {key: 1 for key,value in dictinct_val_dict.items() if value == 1 }
-    
-    warning_df = pd.DataFrame([
-                                warning_null_dict
-                                ,warning_zeroes_dict
-                                ,warning_cardinality_dict
-                                ,warning_one_distinct_dict
-                                ]
-                                , index = ['Nulls','Zeroes','Cardinality','Only_1_distinct']   
-                                )
-    
-    final_warnings_list = []
-    for column in warning_df:
-        column_warnings = []
-        if warning_df.loc['Nulls' , column] == 1:
-            column_warnings.append('High_null_percentage')
-        if warning_df.loc['Zeroes' , column] == 1:
-            column_warnings.append('High_zeroes_percentage')
-        if warning_df.loc['Cardinality' , column] == 1:
-            column_warnings.append('High_cardinality')
-        if warning_df.loc['Only_1_distinct' , column] == 1:
-            column_warnings.append('Only_1_unique_value')
-        final_warnings_list.append(column_warnings)
-        
-    final_warnings_dict = dict(zip(warning_df.columns , final_warnings_list))
-            
+    final_warnings_dict = get_dq_warnings(null_dict_p
+                                          , nulls_threshold
+                                          , zeroes_dict_p
+                                          , zeroes_threshold
+                                          , cardinality_dict
+                                          , cardinality_threshold
+                                          , dictinct_val_dict
+                                          , dtype_regex_detail
+                                          , dtype_dict
+                                          , dtype_regex_final
+                                          )
             
     
+    # Put together the final summary profile
     df_profile = pd.DataFrame([
                         dtype_dict
+                        ,dtype_regex_final
+                        ,dtype_regex_detail
                         ,count_dict
                         ,null_dict_n
                         ,null_dict_p
@@ -164,12 +286,16 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
                         #outliers
                         ,final_warnings_dict
                         ]
-                        , index = ['Dtype','Count','Null(n)','Null(p)','Distinct_Values','Cardinality',
+                        , index = ['Dtype_Auto','Dtype_Regex','Dtype_Detail',\
+                                   'Count','Null(n)','Null(p)','Distinct_Values','Cardinality',
                                    'Zeroes(n)','Zeroes(p)','Mean','Min','Q1','Q2','Q3','Max','DQ_Warnings']       
                         )
     
     return df_profile
 
+
+
+# test = df_profiling(df)
 
 ###################################################################################################
 

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='datatlas', # this is what the user will install
-	version='1.0.0',
+	version='1.0.1',
 	packages=find_packages(),
     description='Basic functionality for data science & engineering',
 	url="https://github.com/mei-yong/datatlas",
