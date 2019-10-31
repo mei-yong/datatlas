@@ -125,7 +125,7 @@ def get_dtype_profile(df):
         col = df[column]
         
         # Data prep for regex
-        col.dropna(inplace=True) # Drop nulls
+        col = col.dropna() # Drop nulls
         col = col.astype(str).str.lower() # Lowercase
         col = col.str.replace(' ','') # Remove whitespace
         col = col.apply(lambda x: re.sub(r'[^\w\s]', '', x)) # Remove punctuation
@@ -182,10 +182,10 @@ def get_dtype_profile(df):
 def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_threshold=50.0):
     '''
     Input(s):
-        1) df - dataframe to analyse
-        2) nulls_threshold - int - default 50. Adds warning if >50% nulls
-        3) zeroes_threshold - int - default 50. Adds warning if >50% zeroes for numerical dtype columns
-        4) cardinality_threshold - int - default 50. Adds warning if >50% nulls for categorical dtype columns
+        1) df: Dataframe to analyse
+        2) nulls_threshold (int): Default is 50. Adds warning if >50% nulls detected
+        3) zeroes_threshold (int): Default 50. Adds warning if >50% zeroes detected for numerical dtype columns
+        4) cardinality_threshold (int): Default 50. Adds warning if >50% unique values for categorical dtype columns
     Output(s):
         1) Dataframe with statistics and data quality warnings about the input df
     '''
@@ -194,6 +194,9 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     import numpy as np
     
     rowcount = df.shape[0]
+    
+    
+    print("Datatlas: Getting stats for any dtype")
     
     # Data type that is auto-detected
     dtype_dict = {column : df[column].dtype.name for column in df}
@@ -210,6 +213,9 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     # Percentage of nulls
     null_dict_p = {column : round(df[column].isnull().sum() / rowcount * 100, 2) for column in df}
     
+    
+    print("Datatlas: Getting stats for non-numerical dtypes")
+    
     # Number of distinct categorical values
     dictinct_val_dict = {column: df[column].nunique() \
                          for column in df if df[column].dtype in ['object'] }
@@ -217,6 +223,9 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     # Percentage of distinct categorical values
     cardinality_dict = {column: round(df[column].value_counts().count() / rowcount * 100 , 2) \
                          for column in df if df[column].dtype in ['object'] }
+    
+    
+    print("Datatlas: Getting stats for numerical dtypes")
     
     # Number of zeroes
     zeroes_dict_n = {column : (df[column]==0).sum() \
@@ -250,6 +259,8 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     # Outliers
     
     
+    
+    print("Datatlas: Getting DQ warnings")
     
     # DQ Warnings
     final_warnings_dict = get_dq_warnings(null_dict_p

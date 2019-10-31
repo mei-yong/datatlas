@@ -11,6 +11,7 @@ git config --global user.email "shaomeiyong@gmail.com"
 git config --global user.name "Atlas"
 git config --global user.email "helloatlas42@gmail.com"
 
+git remote add origin <URL>
 git remote set-url origin <URL>
 
 VIEW CONFIG VALUES
@@ -132,8 +133,28 @@ git branch -a
 * Delete the remote branch
 git push origin --delete <branchname>
 
+MERGE CONFLICTS (using fetch)
+git add .
+git commit -m "Made x changes"
+git fetch
+* View the diverged paths
+git status
+* Try merging the repo master to local master - should get message saying merge conflict
+git merge origin/master
+* Open the modified file(s) and edit wherever it says HEAD and origin/master
+git add .
+git commit -m "Fixed the merge conflicts"
+git push
 
-
+MERGE CONFLICTS (using pull)
+git add .
+git commit -m "Made x changes"
+* Try a git pull but get message saying merge conflict
+git pull
+* Open the modified file(s) and edit wherever it says HEAD and origin/master
+git add .
+git commit -m "Fixed the merge conflicts"
+git push
 
 
 

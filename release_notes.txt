@@ -1,11 +1,14 @@
 
 ##### Datatlas Release Notes #####
 
+1.0.2 @ 2019-10-31
+* Added functionality that predicts missing numerical data values using SGDRegressor - as an alternative to replacing missing values with a mean/max/etc
+
 1.0.1 @ 2019-10-26
 * Added more detailed dtype profiling using regex
 * Refactored some of the code to make it more modular & easier for future working
 
 1.0.0 @ 2019-09-23
-* Function that takes a df input and outputs a df with a basic data profile & warnings.
+* Function that takes a df input and outputs a df with a basic data profile & warnings
 
 Note: wherever I miss out versions, it's probably because I messed up the Git or Python package distribution (I'll never understand wheels and eggs haha - if you get them, please teach me)
