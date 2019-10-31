@@ -156,14 +156,3 @@ git add .
 git commit -m "Fixed the merge conflicts"
 git push
 
-
-
-
-
-
-
-
-
-
-
-
