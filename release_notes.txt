@@ -1,7 +1,7 @@
 
 ##### Datatlas Release Notes #####
 
-1.0.2 @ 2019-10-31
+1.0.3 @ 2019-10-31
 * Added functionality that predicts missing numerical data values using SGDRegressor - as an alternative to replacing missing values with a mean/max/etc
 
 1.0.1 @ 2019-10-26

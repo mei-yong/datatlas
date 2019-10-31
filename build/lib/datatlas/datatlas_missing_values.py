@@ -167,11 +167,7 @@ def predict_missing_values(df, impute_column, datatype, impute_model=True, imput
         sys.exit("Datatlas: Sorry, functionality to predict categoric values is still a work in progress")
 
 
-"""
-# Test
-df = pd.read_csv(r"C:\Users\shaom\Desktop\Machine_Learning\projects\data\airbnb\listings.csv")
-new_df_sgd, sgd_model, impute_stats_sgd = predict_missing_values(df, impute_column='cleaning fee', datatype='numeric', impute_model=True, impute_stats=True, console_messages=False)
-"""
+
 
 
 ###################################################################################################
