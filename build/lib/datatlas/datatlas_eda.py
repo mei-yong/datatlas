@@ -4,25 +4,12 @@ Datatlas: Data Atlas
 * Data profiling
 
 Author: Mei Yong
-Updated date: 2019-10-26
-
+Updated date: 2020-11-14
 WIP Ideas
-    * Distinct values
-	* YesNo
-	* Categorical
 	* ID check
 		- sequential score
 		- Check for repeated value score - mask then group then average where zero is means more repeated values and one means less repeated values and closer to zero is more likely to be an ID
 		-Check for Benford's law - basically if the values start with the same number or set of numbers
-     * y/n check
-        - Convert to string (keep the NaNs)
-        - Check for common y/n values
-	* Date check
-        - Remove NaNs
-        - Convert to string
-        - Check regex and label
-        - Count up the labels
-        - If >60% date then date warning
 	* Treat dates
 		- split into year, month, day
 		- days between current date and column date
@@ -45,7 +32,7 @@ def say_hello(name):
 
 
 # Get DQ warnings based on relevant prior analyses
-def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshold, cardinality_dict, cardinality_threshold, dictinct_val_dict, dtype_regex_detail, dtype_dict, dtype_regex_final):
+def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshold, cardinality_dict, cardinality_threshold, dictinct_val_dict, dtype_regex_detail, dtype_dict, dtype_regex_final, date_check_detail, yn_check_final):
     '''
     Input(s):
         1) Relevant DQ dictionaries
@@ -62,6 +49,8 @@ def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshol
     warning_cardinality_dict = {key: 1 for key,value in cardinality_dict.items() if value >= cardinality_threshold }
     warning_one_distinct_dict = {key: 1 for key,value in dictinct_val_dict.items() if value == 1 }
     warning_dtype_mixed_dict = {key: 1 for key,value in dtype_regex_detail.items() if value['mixed']>0}
+    warning_date_check_dict = {key: 1 for key,value in date_check_detail.items() if value['date']>0}
+    warning_yn_check_dict = {key: 1 for key,value in yn_check_final.items() if value!='not_yn'}
     
     warning_dtype_mismatch_dict = {}
     for column, auto_dtype_value, regex_dtype_value in zip(dtype_dict.keys(), dtype_dict.values(), dtype_regex_final.values()):
@@ -78,9 +67,11 @@ def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshol
                                 ,warning_one_distinct_dict
                                 ,warning_dtype_mixed_dict
                                 ,warning_dtype_mismatch_dict
+                                ,warning_date_check_dict
+                                ,warning_yn_check_dict
                                 ]
                                 , index = ['Nulls','Zeroes','Cardinality','Only_1_distinct',\
-                                           'Mixed_dtype','Dtype_mismatch']   
+                                           'Mixed_dtype','Dtype_mismatch','Date_found','Yesno_found']   
                                 )
     
     # Using the df of DQ flags, put together a list of lists of DQ warnings
@@ -99,6 +90,10 @@ def get_dq_warnings(null_dict_p, nulls_threshold, zeroes_dict_p, zeroes_threshol
             column_warnings.append('Mixed_dtypes')
         if warning_df.loc['Dtype_mismatch' , column] == 1:
             column_warnings.append('Auto_vs_regex_dtype_mismatch')
+        if warning_df.loc['Date_found' , column] == 1:
+            column_warnings.append('Date_patterns_found')
+        if warning_df.loc['Yesno_found' , column] == 1:
+            column_warnings.append('Yes_no_types_found')
         final_warnings_list.append(column_warnings)
         
     final_warnings_dict = dict(zip(warning_df.columns , final_warnings_list))
@@ -176,6 +171,90 @@ def get_dtype_profile(df):
     return dtype_regex_detail, dtype_regex_final
 
 
+def get_date_check(df):
+    '''
+    Input(s):
+        1) df to profile
+    Output(s):
+        1) Dictionary where key is the column name & value is a nested dictionary with percentages of date or non-date patterns found
+    '''
+    
+    import re
+    date_pattern = r"^((\d{1,4}|[A-Za-z]{3,9})[-_./](\d{1,4}|[A-Za-z]{3,9})[-_./](\d{1,4}|[A-Za-z]{3,9}))" #note: left out the $ at the end in case there's HH:MM:SS
+    
+    date_check_detail = {}
+    
+    for column in df:
+        
+        col = df[column]
+        
+        # Data prep for regex
+        col = col.dropna() # Drop nulls
+        col = col.astype(str).str.lower() # Lowercase
+        col = col.str.replace(' ','') # Remove whitespace
+        
+        date_count, not_date_count = 0, 0
+        
+        for item in col:
+            # If the value is null then skip
+            if str(item) in ('None','nan','NaN'):
+                continue
+            # Check if the cell value could be a date
+            try:
+                (re.search(date_pattern, str(item))).group()
+                #print((re.search(date_pattern, str(item))).group()) #test
+                date_count += 1
+            except:
+                not_date_count += 1
+        
+        # Put the results together into a summary dictionary
+        date_check_result = {'date': round(date_count/(date_count+not_date_count) *100, 2)
+                            ,'non-date': round(not_date_count/(date_count+not_date_count) *100, 2)
+                            }
+        
+        date_check_detail[column] = date_check_result
+        
+    return date_check_detail
+
+
+def get_yn_check(df):
+    '''
+    Input(s):
+        1) df to profile
+    Output(s):
+        1) Dictionary where key is the column name & value is a nested dictionary with percentages of numeric, non-numeric, or mixed characters
+        2) Dictionary where key is the column name & value is the most likely data type it should be
+    '''
+    
+    yn_check_final = {}
+    
+    for column in df:
+        
+        col = df[column]
+        
+        col = col.astype(str).str.lower() # Lowercase
+        col = col.str.replace(' ','') # Remove whitespace
+        
+        uniques = col.unique().tolist()
+        
+        # Check for yes, no, nulls
+        if len([x for x in uniques if x in ('yes','no,','nan')]) > 1:
+            yn_check = 'yes_no'
+        # Check for 1, 0, nulls
+        elif len([x for x in uniques if x in ('1','0,','nan')]) > 1:
+            yn_check = '1_0'
+        # Check for true, false, nulls
+        elif len([x for x in uniques if x in ('true','false','nan')]) > 1:
+            yn_check = 'true_false'
+        # Check for one distinct value and nulls
+        elif len(uniques) == 2:
+            yn_check = '2_unique_values'
+        else:
+            yn_check = 'not_yn'
+        
+        yn_check_final[column] = yn_check
+    
+    return yn_check_final
 
 
 # Main function that profiles a df
@@ -203,6 +282,12 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
     
     # Data type using regex
     dtype_regex_detail, dtype_regex_final = get_dtype_profile(df)
+    
+    # Date check using regex
+    date_check_detail = get_date_check(df)
+    
+    # Yes/no check
+    yn_check_final = get_yn_check(df)
     
     # Number of not-nulls
     count_dict = {column : df[column].count() for column in df}
@@ -273,6 +358,8 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
                                           , dtype_regex_detail
                                           , dtype_dict
                                           , dtype_regex_final
+                                          , date_check_detail
+                                          , yn_check_final
                                           )
             
     
@@ -281,6 +368,8 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
                         dtype_dict
                         ,dtype_regex_final
                         ,dtype_regex_detail
+                        ,date_check_detail
+                        ,yn_check_final
                         ,count_dict
                         ,null_dict_n
                         ,null_dict_p
@@ -297,7 +386,7 @@ def df_profiling(df, nulls_threshold=50.0, zeroes_threshold=50.0, cardinality_th
                         #outliers
                         ,final_warnings_dict
                         ]
-                        , index = ['Dtype_Auto','Dtype_Regex','Dtype_Detail',\
+                        , index = ['Dtype_Auto','Dtype_Regex','Dtype_Detail','Date_Detail','YesNo_Check',\
                                    'Count','Null(n)','Null(p)','Distinct_Values','Cardinality',
                                    'Zeroes(n)','Zeroes(p)','Mean','Min','Q1','Q2','Q3','Max','DQ_Warnings']       
                         )

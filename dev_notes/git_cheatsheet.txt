@@ -5,11 +5,8 @@ CHECK VERSION
 git --version
 
 SET CONFIG VALUES
-git config --global user.name "Mei Yong"
-git config --global user.email "shaomeiyong@gmail.com"
-
-git config --global user.name "Atlas"
-git config --global user.email "helloatlas42@gmail.com"
+git config --global user.name "mei-yong"
+git config --global user.email "msmeiyong@gmail.com"
 
 git remote add origin <URL>
 git remote set-url origin <URL>
