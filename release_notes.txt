@@ -1,6 +1,9 @@
 
 ##### Datatlas Release Notes #####
 
+1.0.4 @ 2020-11-14
+* Added functionality that checks for date-like patterns and yes/no flag-like patterns
+
 1.0.3 @ 2019-10-31
 * Added functionality that predicts missing numerical data values using SGDRegressor - as an alternative to replacing missing values with a mean/max/etc
 
